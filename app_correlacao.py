@@ -7,6 +7,8 @@ from scipy.stats import shapiro
 import seaborn as sns
 from io import BytesIO
 import matplotlib
+import docx
+
 matplotlib.rcParams['font.family'] = 'DejaVu Sans'
 
 # ── Configuração da página ──────────────────────────────────────────────────
@@ -17,7 +19,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Source Sans 3', sans-serif; }
-    .block-container { padding-top: 1.5rem; }
+    .block-container { padding-top: 2.2rem; }
     .main-title { font-size: 1.8rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.1rem; }
     .subtitle { font-size: 1rem; color: #6c757d; margin-bottom: 1.2rem; }
     .section-header { font-size: 1.05rem; font-weight: 600; color: #1a1a2e; border-bottom: 2px solid #e63946; padding-bottom: 0.3rem; margin-bottom: 1rem; }
@@ -150,7 +152,11 @@ def tabela_cientifica(df_tabela, titulo=""):
 
 
 def criar_grafico_barras(df_plot, var_cat, var_num, titulo, label_x, label_y, cor, agregacao='sum'):
-    df_ag = df_plot.groupby(var_cat)[var_num].agg(agregacao).reset_index()
+    # Validação: variáveis não podem ser iguais
+    if var_cat == var_num:
+        raise ValueError("A variável categórica e a variável numérica devem ser diferentes.")
+    
+    df_ag = df_plot.groupby(var_cat, as_index=False)[var_num].agg(agregacao)
     df_ag = df_ag.sort_values(by=var_cat, ascending=True)
     vx = df_ag[var_cat].astype(str)
     vy = df_ag[var_num]
@@ -233,17 +239,22 @@ def criar_heatmap(mat_r, mat_p, alpha, paleta, metodo, tit_x, tit_y):
 
     nomes = {"pearson": "Pearson (r)", "spearman": "Spearman (ρ)", "kendall": "Kendall (τ)"}
     sns.heatmap(mat_r.astype(float), annot=annot, fmt="", cmap=paleta,
-                center=0, vmin=-1, vmax=1, square=True,
-                linewidths=0.8, linecolor="#ffffff",
-                cbar_kws={"label": f"Correlação ({metodo.capitalize()})", "shrink": 0.8},
-                ax=ax, annot_kws={"size": 10})
-    ax.set_title(f"Matriz de Correlação — {nomes[metodo]}", fontsize=13, fontweight="bold", pad=14)
-    ax.set_xlabel(tit_x, fontsize=11, fontweight="bold")
-    ax.set_ylabel(tit_y, fontsize=11, fontweight="bold")
-    ax.tick_params(axis='x', rotation=45, labelsize=9)
-    ax.tick_params(axis='y', rotation=0, labelsize=9)
+            center=0, vmin=-1, vmax=1, square=True,
+            linewidths=0.8, linecolor="#ffffff",
+            cbar_kws={"shrink": 0.8},
+            ax=ax, annot_kws={"size": 6})
+
+# Ajustar fontes da colorbar
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label(f"Correlação ({metodo.capitalize()})", fontsize=6)
+    ax.set_title(f"Matriz de Correlação — {nomes[metodo]}", fontsize=9, fontweight="bold", pad=14)
+    ax.set_xlabel(tit_x, fontsize=6, fontweight="bold")
+    ax.set_ylabel(tit_y, fontsize=6, fontweight="bold")
+    ax.tick_params(axis='x', rotation=45, labelsize=6)
+    ax.tick_params(axis='y', rotation=0, labelsize=6)
     fig.text(0.5, -0.02, f"*** p<0.001   ** p<0.01   * p<{alpha}   (sem asterisco = não significativo)",
-             ha="center", fontsize=8, color="#6c757d")
+             ha="center", fontsize=6, color="#6c757d")
     fig.patch.set_facecolor('white')
     fig.tight_layout()
     return fig
@@ -414,12 +425,15 @@ with tab_graf:
         lab_y = st.text_input("Rótulo eixo Y", value="", key="bly")
         cor_nome = st.selectbox("Cor das barras", list(CORES_DISPONIVEIS.keys()), index=0, key="bc")
 
-    fig_barras = criar_grafico_barras(df, var_cat, var_val, tit_b, lab_x, lab_y, CORES_DISPONIVEIS[cor_nome], agg)
-    st.pyplot(fig_barras, use_container_width=False)
-    st.session_state["figs"]["barras"] = fig_barras
+    if var_cat == var_val:
+        st.error("⚠️ A variável categórica e a variável numérica não podem ser a mesma coluna. Selecione colunas diferentes.")
+    else:
+        fig_barras = criar_grafico_barras(df, var_cat, var_val, tit_b, lab_x, lab_y, CORES_DISPONIVEIS[cor_nome], agg)
+        st.pyplot(fig_barras, use_container_width=False)
+        st.session_state["figs"]["barras"] = fig_barras
 
-    buf_b = fig_to_bytes(fig_barras)
-    st.download_button("⬇️ Baixar gráfico (PNG 300dpi)", buf_b, file_name="grafico_barras.png", mime="image/png")
+        buf_b = fig_to_bytes(fig_barras)
+        st.download_button("⬇️ Baixar gráfico (PNG 300dpi)", buf_b, file_name="grafico_barras.png", mime="image/png")
 
 # ── ABA 3: CORRELAÇÕES ─────────────────────────────────────────────────────
 with tab_corr:
