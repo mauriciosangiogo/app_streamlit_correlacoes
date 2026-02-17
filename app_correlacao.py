@@ -479,7 +479,7 @@ with tab_corr:
         st.download_button("⬇️ Baixar heatmap (PNG 300dpi)", buf_hm, file_name="heatmap.png", mime="image/png")
 
         st.markdown("---")
-        st.markdown("**Tabela de correlações (formato científico)**")
+        st.markdown("**Tabela de correlações**")
         fig_ct = tabela_cientifica(tab_fmt, titulo=f"Correlações ({metodo.capitalize()}) — *** p<0.001, ** p<0.01, * p<{alpha_c}")
         st.pyplot(fig_ct, use_container_width=False)
         st.session_state["figs"]["corr_tab"] = fig_ct
